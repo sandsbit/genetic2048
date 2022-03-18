@@ -26,6 +26,7 @@ class Game2048:
     # not exact numbers but log2 of them are stored
     game_field: list[list[int]]
     number_of_moves: int = 0
+    score: int = 0
 
     def __init__(self):
         """Generate initial game field state"""
@@ -39,6 +40,9 @@ class Game2048:
 
     def get_number_of_moves(self) -> int:
         """N.B.: moves that do not change the field are npt counted"""
+        pass
+
+    def get_score(self) -> int:
         pass
 
     def _generate_field(self):
