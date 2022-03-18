@@ -40,14 +40,14 @@ class Game2048:
         pass
 
     def get_game_field(self) -> list[list[int]]:
-        pass
+        return [list(map(lambda x: 0 if x == 0 else 2**x, row)) for row in self._game_field]
 
     def get_number_of_moves(self) -> int:
         """N.B.: moves that do not change the field are npt counted"""
-        pass
+        return self._number_of_moves
 
     def get_score(self) -> int:
-        pass
+        return self._score
 
     def _generate_field(self):
         game_field = [[0 for i in range(self.FIELD_SIZE)] for i in range(self.FIELD_SIZE)]
