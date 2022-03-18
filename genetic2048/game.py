@@ -25,7 +25,7 @@ class Game2048:
 
     # not exact numbers but log2 of them are stored
     game_field: list[list[int]]
-    number_of_moves:int = 0
+    number_of_moves: int = 0
 
     def __init__(self):
         """Generate initial game field state"""
