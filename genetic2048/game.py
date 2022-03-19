@@ -13,20 +13,20 @@ class Game2048:
         DEFEAT = 0b0010
         FIELD_UPDATE = 0b0100
         NOTHING = 0b1000
-        GAME_CONTINUES = FIELD_UPDATE & NOTHING
+        GAME_CONTINUES = FIELD_UPDATE | NOTHING
 
     class Move(Enum):
-        UP = np.array(0, 1)
-        DOWN = np.array(0, -1)
-        LEFT = np.array(-1, 0)
-        RIGHT = np.array(1, 0)
+        UP = (-1, 0)
+        DOWN = (1, 0)
+        LEFT = (0, -1)
+        RIGHT = (0, 1)
 
     FIELD_SIZE = 4
     GAME_GOAL = 2048
     _GAME_GOAL_LOG = math.log2(GAME_GOAL)
 
     _NATURAL_GENERATION_NUMBERS_LOG = np.array([1, 2])  # 2, 4
-    _NATURAL_GENERATION_NUMBERS_WEIGHTS = np.array([9, 1])
+    _NATURAL_GENERATION_NUMBERS_WEIGHTS = np.array([0.9, 0.1])
 
     # not exact numbers but log2 of them are stored; for empty cell, 0 is stored
     _game_field: np.ndarray
@@ -42,62 +42,60 @@ class Game2048:
 
         x_range: np.ndarray
         if move_vector[0] != 1:
-            x_range = np.arange(self.FIELD_SIZE)
+            x_range = np.arange(0, self.FIELD_SIZE)
         else:
-            x_range = np.arange(self.FIELD_SIZE, 0, -1)
+            x_range = np.arange(self.FIELD_SIZE - 1, -1, -1)
 
         y_range: np.ndarray
         if move_vector[1] != 1:
-            y_range = np.arange(self.FIELD_SIZE)
+            y_range = np.arange(0, self.FIELD_SIZE)
         else:
-            y_range = np.arange(self.FIELD_SIZE, 0, -1)
+            y_range = np.arange(self.FIELD_SIZE - 1, -1, -1)
+
+        collide_table = np.full(self._game_field.shape, False)
 
         result = self.MoveResult.NOTHING
-        can_make_move = False
+        zeroes_count = 0
         for x in x_range:
             for y in y_range:
                 point = np.array([x, y])
-                new_point = point + move_vector
+                new_point = point
                 point_value = self._point(point)
-                if self._is_empty(point) and self._is_valid_point(new_point):
-                    # that point is not last and is not empty
-                    new_point_value = self._point(new_point)
+                if self._is_empty(point):
+                    zeroes_count += 1
+                    continue
+
+                while self._is_valid_point(new_point := new_point + move_vector) and self._is_empty(new_point):
+                    pass
+
+                if self._is_valid_point(new_point) and not collide_table[new_point[0], new_point[1]] \
+                        and self._point(new_point) == point_value:
+                    new_point_value = point_value + 1
+                    self._score += 2**new_point_value
+                    self._set_point(new_point, new_point_value)
+                    self._set_point(point, 0)
+                    collide_table[new_point[0], new_point[1]] = True
+                    zeroes_count += 1
+                    if new_point_value == self._GAME_GOAL_LOG:
+                        result = self.MoveResult.VICTORY
+                    else:
+                        result = self.MoveResult.FIELD_UPDATE
+                else:
+                    new_point -= move_vector
                     if self._is_empty(new_point):
-                        new_point_2 = new_point + move_vector
-                        if self._is_valid_point(new_point_2) and self._is_empty(new_point_2):
-                            new_point = new_point_2
-                            new_point_value = 0
                         self._set_point(new_point, point_value)
                         self._set_point(point, 0)
                         result = self.MoveResult.FIELD_UPDATE
 
-                        can_make_move = can_make_move or (self._is_valid_point((n_p := new_point + move_vector))
-                                                          and self._point(n_p) == point_value)
-                    elif new_point_value == point_value:
-                        new_point_value = point_value + 1
-                        self._score += 2**new_point_value
-                        self._set_point(new_point, new_point_value)
-                        self._set_point(point, 0)
-                        if new_point_value == self._GAME_GOAL_LOG:
-                            result = self.MoveResult.VICTORY
-                        else:
-                            result = self.MoveResult.FIELD_UPDATE
-                    else:
-                        new_point = point
-                        new_point_value = point_value
-
-                    next_point = new_point + move_vector
-                    can_make_move = can_make_move or (self._is_valid_point(next_point) and
-                                                      self._point(next_point) == new_point_value)
-                    perp_point = new_point + np.vectorize(lambda z: -1 if z == 0 else 0)(move_vector)
-                    can_make_move = can_make_move or (self._is_valid_point(perp_point) and
-                                                      self._point(perp_point) == new_point_value)
+        if zeroes_count == 0 and result != self.MoveResult.NOTHING:
+            self._number_of_moves += 1
+            return self.MoveResult.DEFEAT
 
         if result != self.MoveResult.NOTHING:
+            self._generate_random_number()
             self._number_of_moves += 1
-
-        if not can_make_move and result != self.MoveResult.VICTORY:
-            result = self.MoveResult.DEFEAT
+        if zeroes_count < 2 and not self._can_make_move():
+            return self.MoveResult.DEFEAT
 
         return result
 
@@ -111,8 +109,20 @@ class Game2048:
     def get_score(self) -> int:
         return self._score
 
+    def _can_make_move(self) -> bool:
+        for x in range(self.FIELD_SIZE):
+            for y in range(self.FIELD_SIZE):
+                point_value = self._game_field[x][y]
+                if point_value == 0:
+                    return True
+                if x + 1 < self.FIELD_SIZE and self._game_field[x+1][y] in [point_value, 0]:
+                    return True
+                if y + 1 < self.FIELD_SIZE and self._game_field[x][y+1] in [point_value, 0]:
+                    return True
+        return False
+
     def _is_valid_point(self, point: np.ndarray) -> bool:
-        return point[0] < self.FIELD_SIZE and point[1] < self.FIELD_SIZE
+        return 0 <= point[0] < self.FIELD_SIZE and 0 <= point[1] < self.FIELD_SIZE
 
     def _is_empty(self, point: np.ndarray) -> bool:
         return self._point(point) == 0
