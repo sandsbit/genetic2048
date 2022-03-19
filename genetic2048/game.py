@@ -1,8 +1,10 @@
 # 2048 game logic
 
 import math
-import random
-from enum import IntFlag, Enum, auto
+from enum import IntFlag, Enum
+
+import numpy as np
+from numpy import random
 
 
 class Game2048:
@@ -15,20 +17,20 @@ class Game2048:
         GAME_CONTINUES = FIELD_UPDATE & NOTHING
 
     class Move(Enum):
-        UP = auto()
-        DOWN = auto()
-        LEFT = auto()
-        RIGHT = auto()
+        UP = np.array(0, 1)
+        DOWN = np.array(0, -1)
+        LEFT = np.array(-1, 0)
+        RIGHT = np.array(1, 0)
 
     FIELD_SIZE = 4
     GAME_GOAL = 2048
     _GAME_GOAL_LOG = math.log2(GAME_GOAL)
 
-    _NATURAL_GENERATION_NUMBERS_LOG = [1, 2]  # 2, 4
-    _NATURAL_GENERATION_NUMBERS_WEIGHTS = [9, 1]
+    _NATURAL_GENERATION_NUMBERS_LOG = np.array([1, 2])  # 2, 4
+    _NATURAL_GENERATION_NUMBERS_WEIGHTS = np.array([9, 1])
 
     # not exact numbers but log2 of them are stored; for empty cell, 0 is stored
-    _game_field: list[list[int]]
+    _game_field: np.ndarray
     _number_of_moves: int = 0
     _score: int = 0
 
@@ -39,8 +41,8 @@ class Game2048:
     def make_move(self, move: Move) -> MoveResult:
         pass
 
-    def get_game_field(self) -> list[list[int]]:
-        return [list(map(lambda x: 0 if x == 0 else 2**x, row)) for row in self._game_field]
+    def get_game_field(self) -> np.ndarray:
+        return np.vectorize(lambda x: 0 if x == 0 else 2**x)(self._game_field)
 
     def get_number_of_moves(self) -> int:
         """N.B.: moves that do not change the field are npt counted"""
@@ -49,23 +51,29 @@ class Game2048:
     def get_score(self) -> int:
         return self._score
 
+    def _point(self, point: np.ndarray) -> int:
+        return self._game_field[point[0]][point[1]]
+
+    def _set_point(self, point: np.ndarray, value: int) -> None:
+        self._game_field[point[0]][point[1]] = value
+
     def _generate_field(self):
-        game_field = [[0 for i in range(self.FIELD_SIZE)] for i in range(self.FIELD_SIZE)]
+        self._game_field = np.zeros((self.FIELD_SIZE, self.FIELD_SIZE), np.int8)
 
         self._generate_random_number()
         self._generate_random_number()
 
     def _choose_natural_gen_number(self):
-        return random.choices(self._NATURAL_GENERATION_NUMBERS_LOG, self._NATURAL_GENERATION_NUMBERS_WEIGHTS)
+        return random.choice(self._NATURAL_GENERATION_NUMBERS_LOG, p=self._NATURAL_GENERATION_NUMBERS_WEIGHTS)
 
-    def _choose_random_empty_cell(self) -> tuple[int, int]:
+    def _choose_random_empty_cell(self) -> np.ndarray:
         while True:
-            x, y = (random.randrange(0, self.FIELD_SIZE) for i in range(2))
-            if self._game_field[x][y] == 0:
-                return x, y
+            point = random.randint(self.FIELD_SIZE, size=2)
+            if self._point(point) == 0:
+                return point
 
     def _generate_random_number(self):
         num = self._choose_natural_gen_number()
-        x, y = self._choose_random_empty_cell()
-        self._game_field[x][y] = num
+        point = self._choose_random_empty_cell()
+        self._set_point(point, num)
 
