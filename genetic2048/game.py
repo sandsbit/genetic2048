@@ -32,6 +32,7 @@ class Game2048:
     _game_field: np.ndarray
     _number_of_moves: int = 0
     _score: int = 0
+    _max_value_log: int = 0
 
     def __init__(self):
         """Generate initial game field state"""
@@ -71,6 +72,8 @@ class Game2048:
                 if self._is_valid_point(new_point) and not collide_table[new_point[0], new_point[1]] \
                         and self._point(new_point) == point_value:
                     new_point_value = point_value + 1
+                    if new_point_value > self._max_value_log:
+                        self._max_value_log = new_point_value
                     self._score += 2**new_point_value
                     self._set_point(new_point, new_point_value)
                     self._set_point(point, 0)
@@ -108,6 +111,9 @@ class Game2048:
 
     def get_score(self) -> int:
         return self._score
+
+    def get_max_value(self) -> int:
+        return 2 ** self._max_value_log
 
     def _can_make_move(self) -> bool:
         for x in range(self.FIELD_SIZE):
@@ -155,5 +161,7 @@ class Game2048:
 
     def _generate_random_number(self):
         num = self._choose_natural_gen_number()
+        if num > self._max_value_log:
+            self._max_value_log = num
         point = self._choose_random_empty_cell()
         self._set_point(point, num)

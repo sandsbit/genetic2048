@@ -77,3 +77,4 @@ if __name__ == '__main__':
 
     print('Score:', game.get_score())
     print('Number of moves:', game.get_number_of_moves())
+    print('Max value:', game.get_max_value())
