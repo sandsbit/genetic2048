@@ -143,10 +143,15 @@ class Game2048:
         return random.choice(self._NATURAL_GENERATION_NUMBERS_LOG, p=self._NATURAL_GENERATION_NUMBERS_WEIGHTS)
 
     def _choose_random_empty_cell(self) -> np.ndarray:
-        while True:
-            point = random.randint(self.FIELD_SIZE, size=2)
-            if self._point(point) == 0:
-                return point
+        count = np.count_nonzero(self._game_field == 0)
+        point_number = random.randint(count) + 1
+        zero_count = 0
+        for x in range(self.FIELD_SIZE):
+            for y in range(self.FIELD_SIZE):
+                if self._game_field[x][y] == 0:
+                    zero_count += 1
+                    if zero_count == point_number:
+                        return np.array([x, y])
 
     def _generate_random_number(self):
         num = self._choose_natural_gen_number()
